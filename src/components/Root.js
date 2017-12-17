@@ -14,6 +14,7 @@ type Job = {
 type State = {
   jobs: ?Array<Job>,
   query: string,
+  recommended: ?Job,
 }
 
 class Root extends PureComponent<null, State> {
@@ -22,6 +23,7 @@ class Root extends PureComponent<null, State> {
     this.state = {
       query: 'javascript',
       jobs: null,
+      recommended: null,
     }
   }
 
@@ -49,10 +51,30 @@ class Root extends PureComponent<null, State> {
         jobs: response,
       })
     })
+
+    // SUGGESTION handling
+    const reloadSuggestionClickStream = Rx.Observable.fromEvent(
+      document.querySelector('#hideSuggestionButton'),
+      'click',
+    )
+
+    const suggestionStream = reloadSuggestionClickStream
+      .startWith('startup click') // combine to get suggestion on first response
+      .combineLatest(
+        responseStream,
+        (click, jobs) => jobs[Math.floor(Math.random() * jobs.length)]
+      )
+      .merge(refreshClickStream.map(() => null)) // clear suggestion on button click
+
+    suggestionStream.subscribe(suggestion => {
+      this.setState({
+        recommended: suggestion,
+      })
+    })
   }
 
   render() {
-    const { jobs, query } = this.state
+    const { jobs, query, recommended } = this.state
 
     return (
       <div className="Root">
@@ -64,6 +86,15 @@ class Root extends PureComponent<null, State> {
             type="text"
           />
           <button id="refreshButton">Refresh</button>
+        </div>
+        <div>
+          <h2>Recommended</h2>
+          {recommended && (
+            <p>
+              {recommended.title} in {recommended.location}
+            </p>
+          )}
+          <button id="hideSuggestionButton">Not interested</button>
         </div>
         {jobs && (
           <table>
